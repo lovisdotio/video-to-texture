@@ -21,6 +21,8 @@ blender -b final.blend --python blender/shots.py -- --shot hero      --variant v
   unfolds the textured car into its atlas while the other parts shrink away and the
   camera moves to face the plane. `--tex` swaps the body texture (e.g. before / after
   step 05).
+- `--texdir DIR` swaps every atlas page for `DIR/<page>_v12.png` (step 07 output);
+  `--pbr` turns the unlit atlases into a lacquered car paint (Principled BSDF + coat).
 - `hero`: slow, low closing orbit.
 
 ## 2. Motion layer (`motion/`)

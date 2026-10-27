@@ -32,6 +32,7 @@ AI video, baked onto real UVs.
 | 4 | Re-unwrap + rebake | Blender, UVgami seams, H100 baker | clean UV islands per material page, video re-projected into them | [`pipeline/04_unwrap`](pipeline/04_unwrap) |
 | 5 | Complete + upscale | Seedream 5 Pro edit, Topaz (fal) | fills seams / never-seen texels per atlas, upscales to native 4K / 8K | [`pipeline/05_seedream`](pipeline/05_seedream) |
 | 6 | Assemble | Blender | swaps the final atlases onto the mesh, renders, exports | [`pipeline/06_assemble`](pipeline/06_assemble) |
+| 7 | Atlas cleanup (v12) | Python, push-pull diffusion, Seedream 5 Pro edit (fal) | removes the dark rim baked at island borders, fills all padding | [`pipeline/07_atlas_cleanup`](pipeline/07_atlas_cleanup) |
 
 The explainer film itself is code too: [`explainer/`](explainer).
 
@@ -53,17 +54,16 @@ python pipeline/03_fit/prepare_dataset.py
 python pipeline/03_fit/run_video_mask.py && python pipeline/03_fit/add_masks_to_dataset.py
 DATASET_URL=<uploaded dataset_v03_masked.zip> fal run pipeline/03_fit/fit_run.py::fit_texture
 
-# 4-6. see each step's README
+# 4-7. see each step's README
 ```
 
-Steps 1-3 are the core method and the most self-contained code. Steps 4-6 are a
+Steps 1-3 are the core method and the most self-contained code. Steps 4-7 are a
 research snapshot: hash-pinned to intermediate data we do not ship, kept as a reference
 implementation.
 
 ## Results we recorded
 
-![final textured mesh, five views](media/final_five_views.jpg)
-
+![final textured mesh, four views (v12)](media/final_four_views_v12.jpg)
 
 | | Atlas | Median silhouette IoU | Held-out masked L1 | H100 time |
 |---|---|---:|---:|---:|
@@ -74,6 +74,21 @@ The 8K fit looked about the same as the 4K one. The ceiling is the source: in th
 video the car is about 374 px wide in a median frame. Steps 4-5 exist because a single
 auto-unwrapped atlas made glass, tyres and paint all look like painted bodywork, and
 because a video never sees every texel.
+
+## Atlas cleanup (v12)
+
+The step-06 atlases had thin dark lines along every seam. A render with a plain white
+texture had no lines, so they were **baked into the texture**: the video projection
+leaves a dark rim at each UV island border. Step 7 keeps island interiors byte-exact,
+rebuilds the rim (24 px at 8K on the body, 2 px on small-island pages so dark materials
+like tyres and carbon stay dark) by push-pull diffusion from the interior, then fills all
+padding with a Seedream gutter fill so the atlas has no black.
+
+![before / 14 px / 24 px rim rebuild](media/seam_cleanup_before_after.jpg)
+
+<sub>top: before · middle: 14 px · bottom: 24 px (kept)</sub>
+
+<p align="center"><img src="media/body_atlas_v12.jpg" width="640" alt="v12 body atlas, no black padding"></p>
 
 ## Costs (as recorded)
 
@@ -122,8 +137,9 @@ pipeline/03_fit        dataset prep, mattes, nvdiffrast fit (+ hq_v2 8K variant)
 pipeline/04_unwrap     v8 unwrap architecture, baker, targeted v9 re-unwrap / rebake
 pipeline/05_seedream   atlas completion (Seedream) + Topaz upscale + full-bleed
 pipeline/06_assemble   texture swap into the final Blender scene
+pipeline/07_atlas_cleanup  seam-rim rebuild + Seedream padding fill (v12)
 explainer/             Blender shots + GSAP film rendered frame by frame
-media/                 banner, unfold GIF, final views (explainer film added separately)
+media/                 banner, unfold GIF, final views, atlas cleanup (explainer film added separately)
 ```
 
 ## Credits

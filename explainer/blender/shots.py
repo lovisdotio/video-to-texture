@@ -17,6 +17,8 @@ p.add_argument("--only", type=str, default="")     # comma list of frames to ren
 p.add_argument("--preview", action="store_true")
 p.add_argument("--transparent", action="store_true")
 p.add_argument("--tex", default="")
+p.add_argument("--texdir", default="")
+p.add_argument("--pbr", action="store_true")
 a = p.parse_args(argv)
 
 scene = bpy.context.scene
@@ -87,6 +89,33 @@ def bbox(objs):
     hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
     return lo, hi
 
+# optional: swap the body atlas, and/or turn the unlit atlases into a lacquered car paint
+body_mat = next(o for o in pieces if o.name.startswith("FerrariV8_01_body")).material_slots[0].material
+if a.tex:
+    next(n for n in body_mat.node_tree.nodes if n.type == "TEX_IMAGE").image = bpy.data.images.load(a.tex)
+if a.texdir:
+    # swap every atlas page for <texdir>/<page>_v12.png when present
+    for img in list(bpy.data.images):
+        if not img.name.startswith("Ferrari_TargetedV11_"): continue
+        page = img.name.split("Ferrari_TargetedV11_")[-1].rsplit("_", 2)[0]
+        f = Path(a.texdir) / f"{page}_v12.png"
+        if f.exists():
+            img.filepath = str(f); img.reload(); print("SWAP", page)
+if a.pbr:
+    for m in {s.material for o in pieces for s in o.material_slots if s.material}:
+        nt = m.node_tree
+        em = next((n for n in nt.nodes if n.type == "EMISSION"), None)
+        tex = next((n for n in nt.nodes if n.type == "TEX_IMAGE"), None)
+        out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"), None)
+        if not (em and tex and out): continue
+        bs = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        nt.links.new(tex.outputs["Color"], bs.inputs["Base Color"])
+        paint = m is body_mat
+        bs.inputs["Roughness"].default_value = 0.32 if paint else 0.5
+        for k, v in (("Coat Weight", 1.0 if paint else 0.0), ("Coat Roughness", 0.04)):
+            if k in bs.inputs: bs.inputs[k].default_value = v
+        nt.links.new(bs.outputs["BSDF"], out.inputs["Surface"])
+
 lo, hi = bbox(pieces)
 center = (lo + hi) / 2
 if a.variant == "videofit":
@@ -145,9 +174,6 @@ if a.shot == "unfold":
     body = [o for o in pieces if o.name.startswith("FerrariV8_01_body")]
     others = [o for o in pieces if o not in body]
     mat = body[0].material_slots[0].material
-    if a.tex:
-        img = bpy.data.images.load(a.tex)
-        next(n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE").image = img
     # rebuild one mesh where every (vertex, uv) pair is unique so islands can separate
     SIZE = 3.0
     verts, flat, faces, uvs = [], [], [], []

@@ -6,7 +6,7 @@ const $ = (s) => document.querySelector(s);
 
 // scene windows [start, end) in seconds
 const SCENES = {
-  s0: [0, 2], s1: [2, 6], s2: [6, 10], s3: [10, 16], s4: [16, 24], s5z: [24, 26.5], s6: [26.5, 31], s7: [31, 35], s8: [35, 42],
+  s0: [0, 2], s1: [2, 6], s2: [6, 10], s3: [10, 16], s4: [16, 21], s5: [21, 24], s5z: [24, 26.5], s6: [26.5, 31], s7: [31, 35], s8: [35, 42],
 };
 const DURATION = 42;
 
@@ -49,6 +49,7 @@ tl.fromTo("#s1l", { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0
   .fromTo("#s1r", { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.6 }, 2 + BEAT)
   .fromTo("#s1la", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4 }, 2.3)
   .fromTo("#s1ra", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4 }, 2.8)
+  .fromTo(["#s1l img", "#s1r img"], { filter: "brightness(1)" }, { filter: "brightness(0.42)", immediateRender: false, duration: 0.5, ease: "power2.out" }, 4)
   .fromTo("#s1q", { opacity: 0, scale: 1.12, filter: "blur(16px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.7 }, 4)
   .to(["#s1l", "#s1r"], { scale: 0.96, duration: 2, ease: "none" }, 4);
 
@@ -79,20 +80,20 @@ flash(16);
 hud(16, 4);
 chip(16, "04", "Re-unwrap", "Clean UV islands · the body unfolds to its atlas", "", 21);
 flash(16.6, 0.35);
-tl.fromTo("#s4", { scale: 1 }, { scale: 1.45, duration: 4, ease: "power2.inOut", immediateRender: false }, 19.5)
-  .set("#s5wipe", { clipPath: "inset(0 100% 0 0)" }, 16)
-  .set(["#s5a", "#s5b", "#s5scan"], { opacity: 0 }, 16);
 hud(21, 5);
 chip(21, "05", "Seedream 5 Pro", "Completes seams & gaps · Topaz upscale to 8K", "", 26.5);
-tl.to(["#s5a", "#s5b"], { opacity: 1, duration: 0.3 }, 21.2)
-  .fromTo("#s5wipe", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 2, ease: "power2.inOut" }, 21.6)
-  .fromTo("#s5scan", { left: 0, opacity: 1 }, { left: 1916, duration: 2, ease: "power2.inOut" }, 21.6)
-  .set("#s5scan", { opacity: 0 }, 23.6)
-  .to(["#s5a", "#s5b"], { opacity: 0, duration: 0.2 }, 23.8);
+flash(21);
+tl.fromTo("#s5zoom", { scale: 1.15 }, { scale: 1.7, duration: 3, ease: "power1.inOut", immediateRender: false }, 21)
+  .fromTo(["#s5a", "#s5b"], { opacity: 0 }, { opacity: 1, duration: 0.3, immediateRender: false }, 21.2)
+  .fromTo("#s5wipe", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 1.8, ease: "power2.inOut" }, 21.5)
+  .fromTo("#s5scan", { left: 0, opacity: 1 }, { left: 1916, duration: 1.8, ease: "power2.inOut", immediateRender: false }, 21.5)
+  .set("#s5scan", { opacity: 0 }, 23.3);
 // loupes: same camera, same frame — video-only texture vs final
 flash(24, 0.5);
 tl.fromTo("#lpA", { scale: 0, rotate: -20 }, { scale: 1, rotate: 0, duration: 0.6, ease: "back.out(1.6)" }, 24)
   .fromTo("#lpB", { scale: 0, rotate: 20 }, { scale: 1, rotate: 0, duration: 0.6, ease: "back.out(1.6)" }, 24 + BEAT)
+  .set(["#lpAl", "#lpBl"], { xPercent: -50 }, 0)
+  .fromTo("#lpH", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 }, 24.1)
   .fromTo(["#lpAl", "#lpBl"], { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: BEAT }, 24.3)
   .fromTo([".loupe img"], { scale: 2.0 }, { scale: 2.6, duration: 2.5, ease: "none" }, 24);
 
