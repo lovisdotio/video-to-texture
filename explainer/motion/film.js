@@ -118,7 +118,14 @@ tl.fromTo("#s7c", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 66.66%
 tl.to(["#hud", "#bar"], { opacity: 0, duration: 0.4 }, 35);
 tl.fromTo("#pipe .s, #pipe .ar", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, stagger: BEAT / 2 }, 37)
   .fromTo("#endt", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, 39)
-  .to("#s8 img.seq", { filter: "brightness(0.55)", duration: 1.5, ease: "power1.inOut" }, 37);
+  .fromTo("#s8 img.seq", { filter: "brightness(1)" }, { filter: "brightness(0.75)", duration: 1.5, ease: "power1.inOut", immediateRender: false }, 38.5);
+
+// closing beat: four wide angles cut on the beat (existing renders, no re-render)
+tl.set("#f1", { opacity: 1 }, 35).set(["#f2", "#f3", "#f4"], { opacity: 0 }, 35)
+  .set("#f1", { opacity: 0 }, 36.5).set("#f2", { opacity: 1 }, 36.5)
+  .set("#f2", { opacity: 0 }, 38).set("#f3", { opacity: 1 }, 38)
+  .set("#f3", { opacity: 0 }, 40).set("#f4", { opacity: 1 }, 40);
+flash(36.5, 0.35); flash(38, 0.35); flash(40, 0.35);
 
 tl.set({}, {}, DURATION);
 
@@ -126,7 +133,7 @@ tl.set({}, {}, DURATION);
 const pad = (n) => String(n).padStart(4, "0");
 function seqFrame(img, t) {
   const name = img.dataset.seq, count = SEQ[name] || 1;
-  let i = Math.floor((t - +img.dataset.start) * FPS + 1e-6);
+  let i = Math.floor((t - +img.dataset.start) * FPS + 1e-6) + (+img.dataset.offset || 0);
   if (img.dataset.hold) i = +img.dataset.hold;
   i = Math.max(0, Math.min(count - 1, i));
   if (img.dataset.reverse) i = count - 1 - i;
