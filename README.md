@@ -5,7 +5,9 @@ move, then fit the video back onto the original mesh as a real UV texture.**
 
 ![clay orbit → AI video → UV atlas → textured mesh](media/banner.jpg)
 
-<!-- explainer video -->
+[![Watch the explainer (42 s)](media/explainer_poster.jpg)](media/explainer.mp4)
+
+<sub>Explainer film, 42 s, made entirely from this repo's renders. Click to watch.</sub>
 
 <sub>clay orbit · Seedance 2.5 video · fitted + completed UV atlas · final textured mesh</sub>
 
