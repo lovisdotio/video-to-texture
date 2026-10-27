@@ -23,7 +23,14 @@ blender -b final.blend --python blender/shots.py -- --shot hero      --variant v
   step 05).
 - `--texdir DIR` swaps every atlas page for `DIR/<page>_v12.png` (step 07 output);
   `--pbr` turns the unlit atlases into a lacquered car paint (Principled BSDF + coat).
+  With `--pbrdir DIR` it also wires the step-09 PATINA maps (`<page>_normal/rough/metal.png`)
+  into the Principled BSDF and switches to a neutral studio rig (`--light` scales it).
+- `--mirror-seats`: the passenger seat reuses the driver-side UVs (faces matched by
+  mirroring across the car's centre plane), so both seats share the same leather.
 - `hero`: slow, low closing orbit.
+- `project`: the known orbit cameras drawn as glowing frustums, each holding the Seedance
+  frame seen from that pose, with projection rays, while the video texture forms on the car.
+- `views`: 8 inspection views of the textured car.
 
 ## 2. Motion layer (`motion/`)
 

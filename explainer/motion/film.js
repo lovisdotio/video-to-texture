@@ -67,11 +67,11 @@ chip(8, "02", "Seedance 2.5", "Reference-to-video · same motion, new look", "",
 flash(10);
 hud(10, 3);
 chip(10, "03", "nvdiffrast", "Differentiable texture fit · every frame at once", "Deployable on fal Serverless · H100 · contact the team", 16);
-tl.fromTo("#s3uv", { opacity: 0, scale: 0.9, rotate: -3 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.6 }, 10.5)
-  .fromTo("#s3l0", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 10.8)
+tl.fromTo("#s3uv", { opacity: 0, scale: 0.9, rotate: -3 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.6 }, 12.5)
+  .fromTo("#s3l0", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 12.8)
   .fromTo("#s3l1", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 11)
-  .fromTo("#s3uv1", { opacity: 0 }, { opacity: 1, duration: 2.5, ease: "power1.inOut" }, 12)
-  .set("#s3it", { textContent: "fitting…" }, 12)
+  .fromTo("#s3uv1", { opacity: 0 }, { opacity: 1, duration: 2.0, ease: "power1.inOut" }, 13)
+  .set("#s3it", { textContent: "fitting…" }, 13)
   .set("#s3it", { textContent: "fitted" }, 14.5)
   .fromTo("#s3uv", { scale: 1 }, { scale: 1.06, duration: 1.5, ease: "power1.inOut" }, 14.5);
 

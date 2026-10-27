@@ -19,6 +19,9 @@ p.add_argument("--transparent", action="store_true")
 p.add_argument("--tex", default="")
 p.add_argument("--texdir", default="")
 p.add_argument("--pbr", action="store_true")
+p.add_argument("--pbrdir", default="")
+p.add_argument("--mirror-seats", dest="mirror_seats", action="store_true")
+p.add_argument("--light", type=float, default=1.0)
 a = p.parse_args(argv)
 
 scene = bpy.context.scene
@@ -73,7 +76,7 @@ scene.use_nodes = False
 scene.view_settings.view_transform = "AgX"
 try: scene.view_settings.look = "AgX - Medium High Contrast"
 except TypeError: pass
-try: scene.eevee.taa_render_samples = 16 if a.preview else 32
+try: scene.eevee.taa_render_samples = 16 if a.preview else 48
 except Exception: pass
 
 world = bpy.data.worlds.new("EXPLAINER_WORLD")
@@ -102,19 +105,61 @@ if a.texdir:
         if f.exists():
             img.filepath = str(f); img.reload(); print("SWAP", page)
 if a.pbr:
+    # lit car paint: v12 colour + PATINA roughness / metalness / normal per atlas page, clear coat on the body
     for m in {s.material for o in pieces for s in o.material_slots if s.material}:
         nt = m.node_tree
         em = next((n for n in nt.nodes if n.type == "EMISSION"), None)
         tex = next((n for n in nt.nodes if n.type == "TEX_IMAGE"), None)
         out = next((n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"), None)
-        if not (em and tex and out): continue
+        if not (em and tex and out and tex.image): continue
+        page = tex.image.name.split("Ferrari_TargetedV11_")[-1].rsplit("_", 2)[0]
+        vec = tex.inputs["Vector"].links[0].from_socket if tex.inputs["Vector"].links else None
         bs = nt.nodes.new("ShaderNodeBsdfPrincipled")
         nt.links.new(tex.outputs["Color"], bs.inputs["Base Color"])
-        paint = m is body_mat
-        bs.inputs["Roughness"].default_value = 0.32 if paint else 0.5
-        for k, v in (("Coat Weight", 1.0 if paint else 0.0), ("Coat Roughness", 0.04)):
-            if k in bs.inputs: bs.inputs[k].default_value = v
+        def map_node(kind):
+            f = Path(a.pbrdir) / f"{page}_{kind}.png"
+            if not (a.pbrdir and f.exists()): return None
+            n = nt.nodes.new("ShaderNodeTexImage"); n.image = bpy.data.images.load(str(f))
+            n.image.colorspace_settings.name = "Non-Color"
+            if vec: nt.links.new(vec, n.inputs["Vector"])
+            return n
+        rn = map_node("rough"); mt = map_node("metal"); nm = map_node("normal")
+        if rn: nt.links.new(rn.outputs["Color"], bs.inputs["Roughness"])
+        else: bs.inputs["Roughness"].default_value = 0.4
+        if mt: nt.links.new(mt.outputs["Color"], bs.inputs["Metallic"])
+        if nm:
+            nmap = nt.nodes.new("ShaderNodeNormalMap"); nmap.inputs["Strength"].default_value = 0.6
+            uvn = next((n for n in nt.nodes if n.type == "UVMAP"), None)
+            if uvn: nmap.uv_map = uvn.uv_map
+            nt.links.new(nm.outputs["Color"], nmap.inputs["Color"]); nt.links.new(nmap.outputs["Normal"], bs.inputs["Normal"])
+        if m is body_mat:
+            for k, v in (("Coat Weight", 1.0), ("Coat Roughness", 0.03)):
+                if k in bs.inputs: bs.inputs[k].default_value = v
         nt.links.new(bs.outputs["BSDF"], out.inputs["Surface"])
+
+if a.mirror_seats:
+    # make the passenger side reuse the driver-side texture: every right-hand face takes the UVs of its mirror face
+    from mathutils import kdtree
+    for o in pieces:
+        if not any(k in o.name for k in ("leather", "interior_light", "interior_dark")): continue
+        me = o.data; uv = me.uv_layers.active.data
+        left = [f for f in me.polygons if f.center.x < -0.02]
+        kd = kdtree.KDTree(len(left))
+        for i, f in enumerate(left): kd.insert(f.center, i)
+        kd.balance()
+        done = 0
+        for f in me.polygons:
+            if f.center.x <= 0.02: continue
+            co, i, d = kd.find((-f.center.x, f.center.y, f.center.z))
+            if d > 0.01: continue
+            g = left[i]
+            for li in f.loop_indices:
+                v = me.vertices[me.loops[li].vertex_index].co
+                m = Vector((-v.x, v.y, v.z))
+                src = min(g.loop_indices, key=lambda lj: (me.vertices[me.loops[lj].vertex_index].co - m).length)
+                uv[li].uv = uv[src].uv
+            done += 1
+        print("MIRRORED", o.name, done)
 
 lo, hi = bbox(pieces)
 center = (lo + hi) / 2
@@ -138,10 +183,16 @@ fb.inputs["Roughness"].default_value = 0.48
 floor.data.materials.append(fm)
 floor.hide_render = a.transparent
 
-for i, (loc, e, s, col) in enumerate((((-3.5, -4.0, 5.5), 1250, 4.0, (1, .88, .75)),
-                                      ((4.5, -1.0, 3.0), 950, 3.0, (.66, .8, 1)),
-                                      ((0, 5.0, 4.0), 1350, 3.5, (1, .45, .3)))):
-    d = bpy.data.lights.new(f"EXPLAINER_L{i}", "AREA"); d.energy = e; d.shape = "DISK"; d.size = s; d.color = col
+RIG = (((-3.5, -4.0, 5.5), 1250, 4.0, (1, .88, .75)),
+       ((4.5, -1.0, 3.0), 950, 3.0, (.66, .8, 1)),
+       ((0, 5.0, 4.0), 1350, 3.5, (1, .45, .3)))
+if a.pbr:
+    # neutral studio for lit paint: big overhead softbox for long reflections, white key, cool rim
+    RIG = (((0, 0, 6.5), 2200, 7.0, (1, 1, 1)),
+           ((-4.5, -3.5, 3.5), 900, 3.0, (1, .96, .9)),
+           ((4.5, 3.0, 2.5), 700, 3.0, (.8, .88, 1)))
+for i, (loc, e, s, col) in enumerate(RIG):
+    d = bpy.data.lights.new(f"EXPLAINER_L{i}", "AREA"); d.energy = e * a.light; d.shape = "DISK"; d.size = s; d.color = col
     L = bpy.data.objects.new(d.name, d); scene.collection.objects.link(L)
     look(L, Vector(loc) + Vector((center.x, center.y, 0)), (center.x, center.y, 0.65))
 
@@ -219,5 +270,76 @@ if a.shot == "hero":
     for i in range(a.frames):
         t = i / a.frames
         ang = math.radians(-60 + 70 * t)
-        look(cam, (center.x + 5.0 * math.cos(ang), center.y + 5.0 * math.sin(ang), 0.55 + 0.25 * t), (center.x, center.y + 0.3, 0.5))
+        look(cam, (center.x + 5.9 * math.cos(ang), center.y + 5.9 * math.sin(ang), 0.6 + 0.25 * t), (center.x, center.y + 0.3, 0.5))
+        render(i)
+
+if a.shot == "views":
+    # 8 inspection views all around the car, 45 degrees apart
+    for i in range(8):
+        ang = math.radians(90 + 45 * i)
+        look(cam, (center.x + 6.4 * math.cos(ang), center.y + 6.4 * math.sin(ang), 1.9), (center.x, center.y, 0.5))
+        render(i)
+
+if a.shot == "project":
+    # stylised explanation of the fit: the real orbit cameras (known poses) as glowing frustums, each holding
+    # the Seedance frame seen from that pose, while the video texture forms on the car
+    import glob
+    vf = bpy.data.objects["Ferrari_VideoFit_4K"]
+    vf.hide_render = False
+    for o in pieces: o.hide_render = True
+    vlo, vhi = bbox([vf])
+    vf.location += Vector((center.x - (vlo.x + vhi.x) / 2, center.y - (vlo.y + vhi.y) / 2, lo.z - vlo.z))
+    # car material: clay -> video texture, driven by FAC
+    m = vf.material_slots[0].material; nt = m.node_tree
+    mout = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    tex_sh = mout.inputs["Surface"].links[0].from_socket
+    clay_bs = nt.nodes.new("ShaderNodeBsdfPrincipled"); clay_bs.inputs["Base Color"].default_value = (0.2, 0.2, 0.21, 1)
+    clay_bs.inputs["Roughness"].default_value = 0.6
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(clay_bs.outputs["BSDF"], mix.inputs[1]); nt.links.new(tex_sh, mix.inputs[2]); nt.links.new(mix.outputs[0], mout.inputs["Surface"])
+    glow = bpy.data.materials.new("EXPL_GLOW"); glow.use_nodes = True
+    gn = glow.node_tree; gn.nodes.clear()
+    ge = gn.nodes.new("ShaderNodeEmission"); ge.inputs["Color"].default_value = (1, 1, 0, 1); ge.inputs["Strength"].default_value = 1.6
+    go = gn.nodes.new("ShaderNodeOutputMaterial"); gn.links.new(ge.outputs[0], go.inputs[0])
+    oc = bpy.data.objects["OrbitCam"]
+    frames = sorted(glob.glob(str(Path(__file__).resolve().parent / "proj" / "sd_*.jpg")), key=lambda f: int(Path(f).stem.split("_")[1]))
+    rigs = []
+    D = 0.75
+    for f in frames:
+        k = int(Path(f).stem.split("_")[1])
+        scene.frame_set(k + 1)
+        M = oc.matrix_world.copy(); cdat = oc.data
+        w = D * cdat.sensor_width / cdat.lens; h = w * 9 / 16
+        apex = Vector((0, 0, 0)); cs = [Vector((sx * w / 2, sy * h / 2, -D)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        me = bpy.data.meshes.new("FRUSTUM"); me.from_pydata([apex] + cs, [(0, 1), (0, 2), (0, 3), (0, 4), (1, 2), (2, 3), (3, 4), (4, 1)], [])
+        fr = bpy.data.objects.new("FRUSTUM", me); scene.collection.objects.link(fr); fr.matrix_world = M
+        wf = fr.modifiers.new("skin", "SKIN")
+        for v in me.skin_vertices[0].data: v.radius = (0.012, 0.012)
+        fr.data.materials.append(glow)
+        pm = bpy.data.meshes.new("CARD"); pm.from_pydata(cs, [], [(0, 1, 2, 3)])
+        uvl = pm.uv_layers.new(); [setattr(uvl.data[i], "uv", uv) for i, uv in enumerate(((0, 0), (1, 0), (1, 1), (0, 1)))]
+        card = bpy.data.objects.new("CARD", pm); scene.collection.objects.link(card); card.matrix_world = M
+        cm = bpy.data.materials.new("CARD"); cm.use_nodes = True; cn = cm.node_tree; cn.nodes.clear()
+        ti = cn.nodes.new("ShaderNodeTexImage"); ti.image = bpy.data.images.load(f)
+        ce = cn.nodes.new("ShaderNodeEmission"); cn.links.new(ti.outputs["Color"], ce.inputs["Color"])
+        co = cn.nodes.new("ShaderNodeOutputMaterial"); cn.links.new(ce.outputs[0], co.inputs[0])
+        pm.materials.append(cm)
+        # projection ray: card centre -> car
+        cc = M @ Vector((0, 0, -D)); rm = bpy.data.meshes.new("RAY"); rm.from_pydata([cc, Vector((center.x, center.y, 0.6))], [(0, 1)], [])
+        ray = bpy.data.objects.new("RAY", rm); scene.collection.objects.link(ray); ray.modifiers.new("skin", "SKIN")
+        for v in rm.skin_vertices[0].data: v.radius = (0.006, 0.006)
+        rm.materials.append(glow)
+        rigs.append((fr, card, ray))
+    cd.lens = 35
+    N = a.frames
+    for i in range(N):
+        t = i / (N - 1)
+        for j, (fr, card, ray) in enumerate(rigs):
+            t0 = 0.06 + j * 0.045
+            on = t > t0
+            fr.hide_render = not on; card.hide_render = not on
+            ray.hide_render = not (t0 < t < t0 + 0.12)
+        mix.inputs[0].default_value = smooth((t - 0.25) / 0.6)
+        ang = math.radians(20 + 70 * t)
+        look(cam, (center.x + 15.0 * math.cos(ang), center.y + 15.0 * math.sin(ang), 13.0 - 3.0 * t), (center.x, center.y, 0.5))
         render(i)

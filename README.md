@@ -5,6 +5,8 @@ move, then fit the video back onto the original mesh as a real UV texture.**
 
 ![clay orbit → AI video → UV atlas → textured mesh](media/banner.jpg)
 
+<!-- explainer video -->
+
 <sub>clay orbit · Seedance 2.5 video · fitted + completed UV atlas · final textured mesh</sub>
 
 The test asset is a Ferrari 458 Spider in clay, parked in a procedural city. The look
@@ -14,6 +16,11 @@ is the same mesh with baked UV atlases you can open in Blender or export as GLB.
 The key idea: because the AI video was generated **from our own Blender orbit**, every
 video frame comes with a known camera pose. No structure-from-motion and no new
 geometry: just an optimization of the texture under fixed cameras.
+
+![known cameras project the AI video onto the mesh](media/projection_cameras.jpg)
+
+<sub>left: the orbit cameras we rendered, aimed at the clay car · right: each camera holds
+the Seedance frame seen from that pose, and the video forms a texture on the mesh</sub>
 
 ## The unfold
 
@@ -33,6 +40,8 @@ AI video, baked onto real UVs.
 | 5 | Complete + upscale | Seedream 5 Pro edit, Topaz (fal) | fills seams / never-seen texels per atlas, upscales to native 4K / 8K | [`pipeline/05_seedream`](pipeline/05_seedream) |
 | 6 | Assemble | Blender | swaps the final atlases onto the mesh, renders, exports | [`pipeline/06_assemble`](pipeline/06_assemble) |
 | 7 | Atlas cleanup (v12) | Python, push-pull diffusion, Seedream 5 Pro edit (fal) | removes the dark rim baked at island borders, fills all padding | [`pipeline/07_atlas_cleanup`](pipeline/07_atlas_cleanup) |
+| 8 | Dirt clean (v13) | Seedream 5 Pro edit (fal) | repaints smudges / baked shadows, composited back only on "dirty" texels | [`pipeline/08_dirt_clean`](pipeline/08_dirt_clean) |
+| 9 | PBR maps | PATINA (fal) | roughness, metalness and normal maps per atlas page for a real material in Blender | [`pipeline/09_pbr_patina`](pipeline/09_pbr_patina) |
 
 The explainer film itself is code too: [`explainer/`](explainer).
 
@@ -54,10 +63,10 @@ python pipeline/03_fit/prepare_dataset.py
 python pipeline/03_fit/run_video_mask.py && python pipeline/03_fit/add_masks_to_dataset.py
 DATASET_URL=<uploaded dataset_v03_masked.zip> fal run pipeline/03_fit/fit_run.py::fit_texture
 
-# 4-7. see each step's README
+# 4-9. see each step's README
 ```
 
-Steps 1-3 are the core method and the most self-contained code. Steps 4-7 are a
+Steps 1-3 are the core method and the most self-contained code. Steps 4-9 are a
 research snapshot: hash-pinned to intermediate data we do not ship, kept as a reference
 implementation.
 
@@ -89,6 +98,37 @@ padding with a Seedream gutter fill so the atlas has no black.
 <sub>top: before · middle: 14 px · bottom: 24 px (kept)</sub>
 
 <p align="center"><img src="media/body_atlas_v12.jpg" width="640" alt="v12 body atlas, no black padding"></p>
+
+## Dirt clean (v13)
+
+The v12 body still had dull grey/brown smudges, mostly on the lower front. They were not
+padding: they came from **the Seedance video itself**, in areas that sit in shadow or are
+rarely seen by the orbit. Step 8 asks Seedream 5 Pro edit to repaint a 2K copy of the
+atlas as clean flat livery, then composites it back **only on dirty texels**: low
+saturation, mid/dark, not indigo, inside the UV islands (mask opened, dilated and
+feathered). Everything else stays byte-exact. Applied to the body and exterior
+(bumpers, skirts) pages.
+
+![top: v12 · bottom: v13 cleaned](media/dirt_clean_v12_v13.jpg)
+
+<sub>top: v12 · bottom: v13 cleaned</sub>
+
+## PBR with PATINA
+
+[PATINA](https://fal.ai/models/fal-ai/patina) turns one image into basecolor, normal,
+roughness, metalness and height maps. We run it per atlas page and keep **roughness**,
+**metalness** and a **normal** map whose island borders are flattened (PATINA adds a bevel
+around each island, which would draw a line along every seam). Colour stays our own atlas.
+
+![PATINA maps, body page](media/patina_maps_body.jpg)
+
+<sub>basecolor · normal · roughness · metalness · height</sub>
+
+![studio renders with PATINA roughness, metalness and normals](media/pbr_patina.jpg)
+
+Run PATINA on the **fully padded** atlas: with black gaps it treats each island as a
+separate object. On car paint metalness came out 0 (correct for lacquer), and roughness
+separates the glossy lacquer from the matte padding.
 
 ## Costs (as recorded)
 
@@ -123,6 +163,8 @@ Check current prices on each model page before running anything in volume.
   installs at image build, not in `setup()`. Use ephemeral `fal run`.
 - **Ask image models for neutral albedo** when completing textures: no baked highlights,
   reflections, shadows or AO.
+- **Dirt in a dark, rarely seen area is usually in the video already.** Clean it on the
+  atlas with an image model, but keep its pixels only where a simple colour mask says so.
 - Blender's glTF importer maps glTF (x, y, z) to Blender (x, −z, y); check conventions
   by silhouette IoU rather than trusting them.
 
@@ -138,8 +180,10 @@ pipeline/04_unwrap     v8 unwrap architecture, baker, targeted v9 re-unwrap / re
 pipeline/05_seedream   atlas completion (Seedream) + Topaz upscale + full-bleed
 pipeline/06_assemble   texture swap into the final Blender scene
 pipeline/07_atlas_cleanup  seam-rim rebuild + Seedream padding fill (v12)
-explainer/             Blender shots + GSAP film rendered frame by frame
-media/                 banner, unfold GIF, final views, atlas cleanup (explainer film added separately)
+pipeline/08_dirt_clean     Seedream clean pass composited on dirty texels only (v13)
+pipeline/09_pbr_patina     PATINA roughness / metalness / normal maps per atlas page
+explainer/             Blender shots (incl. PBR, projection, views) + GSAP film rendered frame by frame
+media/                 banner, projection, unfold GIF, final views, atlas cleanup, dirt clean, PBR (explainer film added separately)
 ```
 
 ## Credits
@@ -150,7 +194,7 @@ media/                 banner, unfold GIF, final views, atlas cleanup (explainer
 - [nvdiffrast](https://github.com/NVlabs/nvdiffrast) (NVIDIA),
   [UVgami](https://github.com/danielboxer/UVgami) for seam proposals (GPL-3.0, not vendored: step 4 loads a local checkout), xatlas.
 - Models run on [fal](https://fal.ai): Seedream 5 Pro, Seedance 2.5, BiRefNet, SeedVR,
-  Topaz.
+  Topaz, PATINA.
 
 ## License
 
