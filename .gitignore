@@ -1,0 +1,13 @@
+node_modules/
+frames/
+renders/
+assets/seq/
+*.blend
+*.blend1
+*.zip
+__pycache__/
+*.pyc
+.DS_Store
+.env
+runs/
+outputs/

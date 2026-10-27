@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Video to Texture — explainer</title>
+<style>
+  :root {
+    --bg: #06080d;
+    --ink: #f3f1ea;
+    --dim: #8a8f9c;
+    --accent: #ffff00;
+    --line: rgba(243, 241, 234, .16);
+    --sans: "Focal", "Focal Web", "Inter", "Helvetica Neue", sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  @font-face { font-family: "Focal"; src: local("Focal Regular"), local("Focal-Regular-Web"); font-weight: 400; }
+  @font-face { font-family: "Focal"; src: local("Focal Medium"), local("Focal-Medium-Web"); font-weight: 500; }
+  @font-face { font-family: "Focal"; src: local("Focal Bold"), local("Focal-Bold-Web"); font-weight: 700; }
+  @font-face { font-family: "Focal"; src: local("Focal Black"), local("Focal-Black-Web"); font-weight: 900; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; background: var(--bg); overflow: hidden; color: var(--ink); font-family: var(--sans); }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  .layer { position: absolute; inset: 0; }
+  .seq, .still { position: absolute; object-fit: cover; width: 100%; height: 100%; display: block; }
+  .clip { overflow: hidden; }
+  .panel { position: absolute; overflow: hidden; border-radius: 18px; background: #000; }
+  .panel img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* typography */
+  .kicker { font-family: var(--mono); font-size: 22px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .big { font-weight: 900; font-size: 168px; line-height: .9; letter-spacing: -.035em; }
+  .mid { font-weight: 700; font-size: 74px; line-height: 1; letter-spacing: -.02em; }
+  .label {
+    position: absolute; font-family: var(--mono); font-size: 20px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 9px 14px; background: rgba(6, 8, 13, .72); border: 1px solid var(--line); border-radius: 6px; white-space: nowrap;
+  }
+  .label b { color: var(--accent); font-weight: 500; }
+
+  /* step chip */
+  .chip { position: absolute; left: 72px; bottom: 96px; display: flex; align-items: stretch; gap: 0; }
+  .chip .n { font-family: var(--mono); font-size: 30px; background: var(--accent); color: #000; padding: 18px 20px; display: flex; align-items: center; }
+  .chip .t { background: rgba(6, 8, 13, .86); border: 1px solid var(--line); border-left: none; padding: 14px 26px 16px; }
+  .chip .model { font-weight: 700; font-size: 44px; letter-spacing: -.015em; line-height: 1.05; }
+  .chip .what { font-family: var(--mono); font-size: 19px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-top: 6px; }
+  .chip .note { font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-top: 8px; }
+
+  /* HUD */
+  #hud { position: absolute; left: 72px; right: 72px; top: 54px; display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  #bar { position: absolute; left: 72px; right: 72px; bottom: 44px; display: flex; gap: 10px; }
+  #bar i { flex: 1; height: 4px; background: var(--line); position: relative; overflow: hidden; display: block; }
+  #bar i::after { content: ""; position: absolute; inset: 0; background: var(--accent); transform: scaleX(var(--p, 0)); transform-origin: left; }
+
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .scan { position: absolute; top: 0; bottom: 0; width: 4px; background: var(--accent); box-shadow: 0 0 24px 6px rgba(255, 255, 0, .55); }
+  .loupe { position: absolute; width: 470px; height: 470px; border-radius: 50%; overflow: hidden; border: 3px solid var(--ink); background: #000; }
+  .loupe img { position: absolute; width: 1920px; height: 1080px; max-width: none; }
+  .pipe { position: absolute; left: 72px; right: 72px; bottom: 110px; display: flex; gap: 14px; align-items: center; }
+  .pipe .s { flex: 1; padding: 16px 18px; background: rgba(6, 8, 13, .8); border: 1px solid var(--line); border-radius: 8px; }
+  .pipe .s .k { font-family: var(--mono); font-size: 15px; letter-spacing: .12em; color: var(--accent); }
+  .pipe .s .m { font-weight: 700; font-size: 27px; margin-top: 4px; letter-spacing: -.01em; }
+  .pipe .ar { font-family: var(--mono); color: var(--dim); font-size: 22px; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- S0 cold open -->
+  <div id="s0" class="layer" style="display:flex;flex-direction:column;justify-content:center;padding-left:140px;">
+    <div class="kicker" id="s0k">Open research · 3D texturing</div>
+    <div class="big" id="s0a" style="margin-top:28px">AI video</div>
+    <div class="big" id="s0b" style="color:var(--accent)">→ real texture.</div>
+  </div>
+
+  <!-- S1 problem split -->
+  <div id="s1" class="layer">
+    <div class="panel" id="s1l" style="left:72px;top:150px;width:870px;height:780px"><img class="seq" data-seq="clay_city"></div>
+    <div class="panel" id="s1r" style="left:978px;top:150px;width:870px;height:780px"><img class="seq" data-seq="seedance"></div>
+    <div class="label" id="s1la" style="left:96px;top:174px">Your 3D scene · <b>clay</b></div>
+    <div class="label" id="s1ra" style="left:1002px;top:174px">An AI video of it · <b>same camera</b></div>
+    <div class="mid" id="s1q" style="position:absolute;left:0;right:0;top:470px;text-align:center;text-shadow:0 6px 40px #000">Can the video <span style="color:var(--accent)">become</span> the texture?</div>
+  </div>
+
+  <!-- S2 steps 01-02 -->
+  <div id="s2" class="layer">
+    <img class="seq" data-seq="clay_city">
+    <div class="layer clip" id="s2wipe"><img class="seq" data-seq="seedance"></div>
+    <div class="scan" id="s2scan"></div>
+  </div>
+
+  <!-- S3 differentiable fit -->
+  <div id="s3" class="layer">
+    <img class="seq" data-seq="tt_videofit" style="width:1280px;height:720px;left:-40px;top:180px;position:absolute">
+    <div class="panel" id="s3uv" style="left:1180px;top:170px;width:660px;height:660px">
+      <img src="assets/img/uv_init.png" id="s3uv0">
+      <img src="assets/img/uv_fit.png" id="s3uv1">
+    </div>
+    <div class="label" id="s3l0" style="left:1200px;top:190px">UV atlas · <b id="s3it">projection init</b></div>
+    <div class="label" id="s3l1" style="left:96px;top:174px">120 video frames · <b>one texture</b></div>
+  </div>
+
+  <!-- S4 unfold / S5 seedream / S6 refold -->
+  <div id="s4" class="layer">
+    <img class="seq" data-seq="unfold_pre">
+    <div class="layer clip" id="s5wipe"><img class="seq" data-seq="unfold_v11"></div>
+    <div class="scan" id="s5scan"></div>
+    <div class="label" id="s5a" style="left:330px;top:150px">Before · <b>gaps & seams</b></div>
+    <div class="label" id="s5b" style="right:330px;top:150px">After · <b>full bleed</b></div>
+  </div>
+  <div id="s5z" class="layer" style="background:var(--bg)">
+    <div class="loupe" id="lpA" style="left:330px;top:250px"><img class="seq" data-seq="tt_videofit" data-hold="75"></div>
+    <div class="loupe" id="lpB" style="left:1120px;top:250px"><img class="seq" data-seq="tt_v11" data-hold="75"></div>
+    <div class="label" id="lpAl" style="left:420px;top:760px">Video fit only</div>
+    <div class="label" id="lpBl" style="left:1170px;top:760px">+ Seedream · <b>8K</b></div>
+  </div>
+  <div id="s6" class="layer"><img class="seq" data-seq="unfold_v11" data-reverse="1"></div>
+
+  <!-- S7 three-way compare -->
+  <div id="s7" class="layer">
+    <div class="layer clip" id="s7c"><img class="seq" data-seq="tt_clay"></div>
+    <div class="layer clip" id="s7v"><img class="seq" data-seq="tt_videofit"></div>
+    <div class="layer clip" id="s7f"><img class="seq" data-seq="tt_v11"></div>
+    <div class="label" id="s7lc" style="left:200px;top:150px">01 · <b>clay</b></div>
+    <div class="label" id="s7lv" style="left:840px;top:150px">03 · <b>video fit</b></div>
+    <div class="label" id="s7lf" style="left:1480px;top:150px">05 · <b>final</b></div>
+  </div>
+
+  <!-- S8 hero -->
+  <div id="s8" class="layer">
+    <img class="seq" data-seq="hero">
+    <div class="pipe" id="pipe">
+      <div class="s"><div class="k">01</div><div class="m">Blender</div></div><div class="ar">→</div>
+      <div class="s"><div class="k">02</div><div class="m">Seedance 2.5</div></div><div class="ar">→</div>
+      <div class="s"><div class="k">03</div><div class="m">nvdiffrast</div></div><div class="ar">→</div>
+      <div class="s"><div class="k">04</div><div class="m">Re-unwrap</div></div><div class="ar">→</div>
+      <div class="s"><div class="k">05</div><div class="m">Seedream 5 Pro</div></div><div class="ar">→</div>
+      <div class="s"><div class="k">06</div><div class="m">Real-time 3D</div></div>
+    </div>
+    <div id="endt" style="position:absolute;left:72px;top:120px">
+      <div class="kicker">Open research</div>
+      <div class="mid" style="margin-top:14px">AI video → real 3D texture.</div>
+    </div>
+  </div>
+
+  <!-- shared chip -->
+  <div class="chip" id="chip"><div class="n" id="chipN">01</div><div class="t"><div class="model" id="chipM"></div><div class="what" id="chipW"></div><div class="note" id="chipX"></div></div></div>
+
+  <div id="hud"><span id="hudL">Video → Texture</span><span id="hudR">00 / 06</span></div>
+  <div id="bar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="flash"></div>
+</div>
+
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script src="film.js"></script>
+</body>
+</html>

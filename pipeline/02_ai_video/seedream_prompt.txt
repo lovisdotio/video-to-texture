@@ -1,0 +1,15 @@
+Transform this untextured 3D clay render into a hyperrealistic photograph, an extraordinary
+cinematic shot with rich detail everywhere, while keeping EXACTLY the same composition,
+camera angle, perspective and all object shapes and positions from the input image.
+The scene: a Ferrari 458 Spider convertible art car wrapped in an intricate ukiyo-e
+Japanese woodblock livery — Hokusai great-wave crests, koi fish and stylized clouds in
+deep indigo blue and off-white, with fine gold filigree linework flowing along the body
+panels — parked in the middle of a city intersection on dark asphalt, photographed from
+a low three-quarter front angle.
+Zebra crosswalk stripes on the road, painted lane markings, concrete sidewalks with curbs,
+a modern glass-and-concrete office building facade with deep window reveals behind the car,
+green leafy street trees, black metal streetlight poles, a park bench, a dark trash can.
+Golden late-afternoon sunlight from the left, long soft shadows, crisp reflections on the
+car paint, photorealistic PBR materials, 35mm photography, f/8 deep focus, everything
+tack sharp, 8k detail. Keep every object exactly where it is in the source image —
+same silhouettes, same proportions, same layout.

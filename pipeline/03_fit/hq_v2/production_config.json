@@ -1,0 +1,36 @@
+{
+  "schema": "car-city-video-fit-hq-v2-production-config-1",
+  "source": {
+    "native_video": "after_effects/seedance_v03.mp4",
+    "native_window_frames": 358,
+    "restored_size": [3840, 2160],
+    "restored_fps": 24,
+    "restoration_backend_recommended": "fal-ai/seedvr/upscale/video",
+    "seedvr_noise_scale": 0.05,
+    "restoration_backend_alternate": "fal-ai/topaz/upscale/video"
+  },
+  "dataset": {
+    "frame_indices": "0,3,...,357",
+    "count": 120,
+    "crop_format": "PNG RGB lossless",
+    "crop_size": [1024, 1024],
+    "mask_format": "PNG grayscale soft alpha",
+    "uv_atlas_size": [8192, 8192],
+    "uv_padding_pixels": 16,
+    "xatlas_texels_per_unit": 1200.0
+  },
+  "fit": {
+    "gpu": "H100 80GB",
+    "coarse_iterations": 500,
+    "fine_iterations": 1200,
+    "coarse_texture_size": 4096,
+    "fine_texture_size": 8192,
+    "coarse_render_size": 512,
+    "fine_render_size": 1024,
+    "batch_size": 3,
+    "seed": 63,
+    "minimum_median_iou": 0.55,
+    "fine_initialization": "direct robust reprojection from 1024px targets blended with coarse only where confidence is low",
+    "sampling": "one view from each temporal stratum per batch, weighted by sharpness"
+  }
+}
