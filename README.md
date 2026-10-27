@@ -3,7 +3,9 @@
 **Render a 3D asset with a known camera, let an AI video model restyle that exact camera
 move, then fit the video back onto the original mesh as a real UV texture.**
 
-> Explainer film: coming soon in `media/`.
+![clay orbit → AI video → UV atlas → textured mesh](media/banner.jpg)
+
+<sub>clay orbit · Seedance 2.5 video · fitted + completed UV atlas · final textured mesh</sub>
 
 The test asset is a Ferrari 458 Spider in clay, parked in a procedural city. The look
 (an ukiyo-e livery in indigo and gold) exists only in an AI-generated video. The output
@@ -12,6 +14,13 @@ is the same mesh with baked UV atlases you can open in Blender or export as GLB.
 The key idea: because the AI video was generated **from our own Blender orbit**, every
 video frame comes with a known camera pose. No structure-from-motion and no new
 geometry: just an optimization of the texture under fixed cameras.
+
+## The unfold
+
+The body mesh morphing into its own UV atlas: every island you see is a piece of the
+AI video, baked onto real UVs.
+
+<p align="center"><img src="media/unfold.gif" width="720" alt="Ferrari body unfolding into its UV atlas"></p>
 
 ## Pipeline
 
@@ -52,6 +61,9 @@ research snapshot: hash-pinned to intermediate data we do not ship, kept as a re
 implementation.
 
 ## Results we recorded
+
+![final textured mesh, five views](media/final_five_views.jpg)
+
 
 | | Atlas | Median silhouette IoU | Held-out masked L1 | H100 time |
 |---|---|---:|---:|---:|
@@ -111,7 +123,7 @@ pipeline/04_unwrap     v8 unwrap architecture, baker, targeted v9 re-unwrap / re
 pipeline/05_seedream   atlas completion (Seedream) + Topaz upscale + full-bleed
 pipeline/06_assemble   texture swap into the final Blender scene
 explainer/             Blender shots + GSAP film rendered frame by frame
-media/                 explainer.mp4 (added separately)
+media/                 banner, unfold GIF, final views (explainer film added separately)
 ```
 
 ## Credits
